@@ -3,8 +3,11 @@ program test_mpiuni_io
   implicit none
 
   type(ESMF_ArraySpec) :: arraySpec3d
+  type(ESMF_ArraySpec) :: arraySpec2d
   type(ESMF_Grid) :: grid
+  type(ESMF_Mesh) :: mesh
   type(ESMF_Field) :: srcfield, dstfield
+  type(ESMF_RouteHandle) :: routehandle
   integer :: rc
 
   character(len=*), parameter :: data_dir = "/opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/esmpy/data/"
@@ -32,6 +35,32 @@ program test_mpiuni_io
        line=__LINE__, file=__FILE__)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   call ESMF_FieldWrite(srcfield, 'srcfield.nc', variableName='so', overwrite=.true., rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+       line=__LINE__, file=__FILE__)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+  mesh = ESMF_MeshCreate(meshfile, ESMF_FILEFORMAT_ESMFMESH, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+       line=__LINE__, file=__FILE__)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+  ! This has 1 spatial dimension plus 1 level dimension
+  call ESMF_ArraySpecSet(arraySpec2d, typekind=ESMF_TYPEKIND_R8, rank=2, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+       line=__LINE__, file=__FILE__)) call ESMF_Finalize(endflag=ESMF_END_ABORT)  
+  dstfield = ESMF_FieldCreate(mesh, arraySpec2d, &
+       name='so', ungriddedLBound=[1], ungriddedUBound=[33], rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+       line=__LINE__, file=__FILE__)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+  call ESMF_FieldRegridStore(srcfield, dstfield, &
+       regridmethod=ESMF_REGRIDMETHOD_BILINEAR, unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, &
+       routehandle=routehandle, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+       line=__LINE__, file=__FILE__)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  call ESMF_FieldRegrid(srcfield, dstfield, routehandle, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+       line=__LINE__, file=__FILE__)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
+
+  call ESMF_FieldWrite(dstfield, 'dstfield.nc', variableName='so', overwrite=.true., rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
        line=__LINE__, file=__FILE__)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
